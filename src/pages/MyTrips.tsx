@@ -1,0 +1,215 @@
+import React, { useEffect, useState } from 'react';
+import { 
+  MapPin, Calendar, Car, Clock, ChevronRight, Search, 
+  Ticket, ArrowLeft, Navigation, Phone, DollarSign, 
+  CheckCircle2, AlertCircle, History
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Booking } from '../types';
+
+export default function MyTrips() {
+  const [phone, setPhone] = useState('');
+  const [trips, setTrips] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const handleSearch = async () => {
+    if (!phone) return;
+    setLoading(true);
+    setHasSearched(true);
+    try {
+      const res = await fetch('/api/bookings');
+      const allBookings: Booking[] = await res.json();
+      setTrips(allBookings.filter(b => b.customer_phone === phone));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F8F9FA]">
+      {/* Hero Banner Section */}
+      <div className="relative bg-gray-900 text-white pt-20 pb-32 overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <img 
+            src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=1920" 
+            alt="Banner Background" 
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+        <div className="container mx-auto px-6 relative z-10">
+          <Link to="/" className="inline-flex items-center gap-2 text-emerald-400 hover:text-emerald-300 transition-colors mb-8 font-bold">
+            <ArrowLeft size={20} /> Quay Lại Trang Chủ
+          </Link>
+          <div className="max-w-2xl">
+            <h1 className="text-4xl md:text-5xl font-black mb-4 leading-tight">
+              Hành Trình <br />
+              Của Bạn
+            </h1>
+            <p className="text-gray-400 text-lg">
+              Tra cứu lịch sử di chuyển, thông tin tài xế và trạng thái thanh toán của các chuyến đi đã đặt.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-6 max-w-3xl -mt-16 relative z-20">
+        {/* Search Bar Card */}
+        <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl shadow-gray-200/50 border border-gray-100 mb-12">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <div className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-500">
+                <Phone size={20} />
+              </div>
+              <input 
+                type="tel" 
+                placeholder="Nhập số điện thoại tra cứu..."
+                className="w-full pl-14 pr-6 py-5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-gray-900"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                onKeyPress={e => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+            <button 
+              onClick={handleSearch}
+              disabled={loading || !phone}
+              className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"
+            >
+              {loading ? <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div> : <Search size={20} />}
+              Tra Cứu
+            </button>
+          </div>
+          <p className="mt-4 text-xs text-gray-400 text-center">
+            * Hệ thống sẽ hiển thị tất cả các chuyến đi liên kết với số điện thoại này.
+          </p>
+        </div>
+
+        {/* Results Section */}
+        <div className="space-y-8 pb-20">
+          {!hasSearched ? (
+            <div className="text-center py-12">
+              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+                <History className="text-gray-200" size={40} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-400">Vui lòng nhập số điện thoại để bắt đầu</h3>
+            </div>
+          ) : loading ? (
+            <div className="space-y-6">
+              {[1, 2].map(i => (
+                <div key={i} className="bg-white h-64 rounded-4xl animate-pulse border border-gray-100"></div>
+              ))}
+            </div>
+          ) : trips.length > 0 ? (
+            trips.map(trip => (
+              <div key={trip.id} className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all group">
+                {/* Card Header */}
+                <div className="p-6 md:p-8 border-b border-gray-50 flex flex-wrap justify-between items-center gap-4 bg-gray-50/30">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                      <Ticket className="text-emerald-500" size={24} />
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Mã Chuyến Đi</div>
+                      <div className="font-black text-gray-900">#CB-{trip.id.toString().padStart(4, '0')}</div>
+                    </div>
+                  </div>
+                  <StatusBadge status={trip.status} />
+                </div>
+                
+                {/* Card Body */}
+                <div className="p-8 md:p-10">
+                  <div className="flex gap-6 mb-10">
+                    <div className="flex flex-col items-center gap-2 py-1">
+                      <div className="w-4 h-4 rounded-full border-4 border-emerald-500 bg-white"></div>
+                      <div className="w-0.5 flex-1 border-l-2 border-dashed border-gray-200"></div>
+                      <div className="w-4 h-4 rounded-full border-4 border-red-500 bg-white"></div>
+                    </div>
+                    <div className="flex-1 space-y-10">
+                      <div>
+                        <div className="text-[10px] text-gray-400 uppercase font-black tracking-[0.2em] mb-1">Điểm Đón</div>
+                        <div className="font-bold text-lg text-gray-900">{trip.pickup_location}</div>
+                        <div className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                          <Clock size={14} /> {new Date(trip.trip_date).toLocaleString('vi-VN')}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-gray-400 uppercase font-black tracking-[0.2em] mb-1">Điểm Đến</div>
+                        <div className="font-bold text-lg text-gray-900">{trip.dropoff_location}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-8 border-t border-gray-50">
+                    <div className="bg-gray-50 p-4 rounded-2xl">
+                      <div className="text-[10px] text-gray-400 uppercase font-black mb-1">Loại Xe</div>
+                      <div className="flex items-center gap-2 font-bold text-gray-700">
+                        <Car size={16} className="text-emerald-500" />
+                        {trip.vehicle_type}
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-2xl">
+                      <div className="text-[10px] text-gray-400 uppercase font-black mb-1">Số Khách</div>
+                      <div className="font-bold text-gray-700">{trip.passengers} Người</div>
+                    </div>
+                    <div className="bg-emerald-50 p-4 rounded-2xl col-span-2 md:col-span-1 border border-emerald-100">
+                      <div className="text-[10px] text-emerald-600/60 uppercase font-black mb-1">Tổng Cước</div>
+                      <div className="text-xl font-black text-emerald-600">
+                        {trip.price.toLocaleString('vi-VN')}đ
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Footer */}
+                  {trip.status === 'pending' && (
+                    <div className="mt-8 p-4 bg-yellow-50 rounded-2xl border border-yellow-100 flex items-center gap-3 text-yellow-800 text-sm font-medium">
+                      <AlertCircle size={18} />
+                      Chuyến đi đang chờ nhân viên xác nhận. Chúng tôi sẽ gọi cho bạn sớm nhất.
+                    </div>
+                  )}
+                  {trip.status === 'assigned' && (
+                    <div className="mt-8 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3 text-blue-800 text-sm font-medium">
+                      <CheckCircle2 size={18} />
+                      Tài xế đã được phân công. Vui lòng chuẩn bị hành lý.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-gray-200">
+              <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Navigation className="text-gray-200" size={40} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Không tìm thấy chuyến đi</h3>
+              <p className="text-gray-500 max-w-xs mx-auto">Chúng tôi không tìm thấy lịch sử chuyến đi nào liên kết với số điện thoại này.</p>
+              <Link to="/book-ride" className="inline-block mt-8 text-emerald-500 font-bold hover:underline">
+                Đặt chuyến đi đầu tiên ngay &rarr;
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: any = {
+    pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    confirmed: 'bg-blue-100 text-blue-700 border-blue-200',
+    assigned: 'bg-purple-100 text-purple-700 border-purple-200',
+    'in-progress': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    completed: 'bg-gray-100 text-gray-700 border-gray-200',
+    cancelled: 'bg-red-100 text-red-700 border-red-200',
+  };
+  return (
+    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${styles[status] || 'bg-gray-100'}`}>
+      {status}
+    </span>
+  );
+}
+
