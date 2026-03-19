@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, 
   XAxis, YAxis, CartesianGrid, Tooltip 

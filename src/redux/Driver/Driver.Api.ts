@@ -1,120 +1,138 @@
 import { getApiUrl } from '../../utils/dbUrl';
-import { Driver, DriverLoginPayload, DriverRegisterPayload, DriverLoginResponse, DriverStats } from '../../types/Driver.types';
+import { 
+  Driver, 
+  DriverRegisterPayload, 
+  DriverLoginPayload, 
+  DriverLoginResponse,
+  DriverUpdateProfilePayload,
+  ChangePasswordPayload,
+  ApiResponse 
+} from '../../types/Driver.types';
 
 export const driverApi = {
-  register: async (payload: DriverRegisterPayload) => {
-    const response = await fetch(getApiUrl('/drivers/register'), {
+  // Đăng ký tài xế
+  register: async (payload: DriverRegisterPayload): Promise<Driver> => {
+    const response = await fetch(getApiUrl('/driver/driver-register'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Quan trọng: để gửi/nhận cookie
       body: JSON.stringify(payload),
     });
+    
+    const data: ApiResponse<Driver> = await response.json();
+    
     if (!response.ok) {
-      throw new Error('Registration failed');
+      throw new Error(data.message || 'Đăng ký thất bại');
     }
-    const data = await response.json();
-    return data.data;
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Đăng ký thất bại');
+    }
+    
+    return data.data as Driver;
   },
 
+  // Đăng nhập tài xế
   login: async (payload: DriverLoginPayload): Promise<DriverLoginResponse> => {
-    const response = await fetch(getApiUrl('/drivers/login'), {
+    const response = await fetch(getApiUrl('/driver/driver-login'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Quan trọng: để gửi/nhận cookie
       body: JSON.stringify(payload),
     });
+    
+    const data: ApiResponse<DriverLoginResponse> = await response.json();
+    
     if (!response.ok) {
-      throw new Error('Login failed');
+      throw new Error(data.message || 'Đăng nhập thất bại');
     }
-    const data = await response.json();
-    return data.data;
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Đăng nhập thất bại');
+    }
+    
+    return data.data as DriverLoginResponse;
   },
 
-  // Staff routes
-  getAllDrivers: async (token: string): Promise<Driver[]> => {
-    const response = await fetch(getApiUrl('/drivers'), {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+  logout: async (): Promise<void> => {
+    const response = await fetch(getApiUrl('/driver/driver-logout'), {
+      method: 'POST',
+      credentials: 'include',
     });
-    if (!response.ok) {
-      throw new Error('Failed to fetch drivers');
+    
+    const data: ApiResponse<null> = await response.json();
+    
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || 'Đăng xuất thất bại');
     }
-    const data = await response.json();
-    return data.data;
   },
 
-  getDriverById: async (id: string, token: string): Promise<Driver> => {
-    const response = await fetch(getApiUrl(`/drivers/${id}`), {
+  getCurrentDriver: async (): Promise<Driver> => {
+    const response = await fetch(getApiUrl('/driver/me'), {
+      method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
+      credentials: 'include',
     });
+    
+    const data: ApiResponse<Driver> = await response.json();
+    
     if (!response.ok) {
-      throw new Error('Failed to fetch driver');
+      throw new Error(data.message || 'Lấy thông tin thất bại');
     }
-    const data = await response.json();
-    return data.data;
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Lấy thông tin thất bại');
+    }
+    
+    return data.data as Driver;
   },
-
-  updateDriverStatus: async (id: string, status: string, token: string): Promise<Driver> => {
-    const response = await fetch(getApiUrl(`/drivers/${id}/status`), {
+  updateProfile: async (payload: DriverUpdateProfilePayload): Promise<Driver> => {
+    const response = await fetch(getApiUrl('/driver/profile'), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ status }),
+      credentials: 'include',
+      body: JSON.stringify(payload),
     });
+    const data: ApiResponse<Driver> = await response.json();
+    
     if (!response.ok) {
-      throw new Error('Failed to update driver status');
+      throw new Error(data.message || 'Cập nhật thông tin thất bại');
     }
-    const data = await response.json();
-    return data.data;
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Cập nhật thông tin thất bại');
+    }
+    
+    return data.data as Driver;
   },
 
-  // Driver routes
-  getDriverTrips: async (driverId: string, token: string): Promise<any[]> => {
-    const response = await fetch(getApiUrl(`/drivers/${driverId}/trips`), {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch driver trips');
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  getDriverStats: async (driverId: string, token: string): Promise<DriverStats> => {
-    const response = await fetch(getApiUrl(`/drivers/${driverId}/stats`), {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch driver stats');
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  confirmTrip: async (assignmentId: string, bookingId: string, token: string, reason?: string) => {
-    const response = await fetch(getApiUrl('/drivers/confirm-trip'), {
+  // Đổi mật khẩu
+  changePassword: async (payload: ChangePasswordPayload): Promise<void> => {
+    const response = await fetch(getApiUrl('/driver/change-password'), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ assignmentId, bookingId, reason }),
+      credentials: 'include',
+      body: JSON.stringify(payload),
     });
+    
+    const data: ApiResponse<null> = await response.json();
+    
     if (!response.ok) {
-      throw new Error('Failed to confirm trip');
+      throw new Error(data.message || 'Đổi mật khẩu thất bại');
     }
-    const data = await response.json();
-    return data.data;
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Đổi mật khẩu thất bại');
+    }
   },
 };

@@ -18,7 +18,6 @@ export default function StaffLogin() {
   const [localError, setLocalError] = useState('');
 
   useEffect(() => {
-    // Nếu đã đăng nhập thì chuyển về dashboard
     if (isAuthenticated) {
       navigate('/staff-dashboard');
     }
@@ -101,7 +100,6 @@ export default function StaffLogin() {
           </p>
         </div>
 
-        {/* Error Message */}
         {(localError || error) && (
           <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-4 mb-6 flex items-center gap-3 text-red-600 animate-in slide-in-from-top">
             <AlertCircle size={20} className="shrink-0" />
@@ -109,7 +107,6 @@ export default function StaffLogin() {
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <InputGroup label="Tên Đăng Nhập / Email" required>
             <div className="relative">

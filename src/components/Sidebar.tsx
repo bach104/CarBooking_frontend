@@ -1,4 +1,4 @@
-import { Calendar, BarChart3, UserCheck, Car, Users, LogOut, LayoutDashboard, X } from 'lucide-react';
+import { Calendar,Home, BarChart3, UserCheck, Car, Users, LogOut, LayoutDashboard, X } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -26,9 +26,14 @@ function SidebarButton({ icon, label, onClick, active }: any) {
 }
 
 export default function Sidebar({ activeTab, onTabChange, isOpen, onClose, staffInfo, onLogout }: SidebarProps) {
+  
+  const handleHomeClick = () => {
+    onClose();
+    window.location.href = '/';
+  };
+
   return (
     <>
-      {/* Overlay */}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
@@ -36,22 +41,18 @@ export default function Sidebar({ activeTab, onTabChange, isOpen, onClose, staff
         />
       )}
 
-      {/* Sidebar */}
       <aside className={`
         fixed inset-y-0 left-0 w-64 bg-linear-to-b from-gray-900 to-blue-900 text-white p-6 z-50 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
-          <div className="flex justify-between items-start mb-10">
+          <div className="flex gap-2 items-start mb-10">
             <h2 className="text-2xl font-bold hidden md:flex items-center gap-2">
-              <LayoutDashboard className="text-emerald-500" /> Staff Panel
+                <nav onClick={handleHomeClick}>
+                <Home size={28} className="text-emerald-500 cursor-pointer hover:text-emerald-400 transition-colors" />
+                </nav>
+                Staff Panel
             </h2>
-            <button 
-              onClick={onClose}
-              className="md:hidden p-2 hover:bg-white/10 rounded-lg"
-            >
-              <X size={24} />
-            </button>
           </div>
           
           <nav className="space-y-2 flex-1">
