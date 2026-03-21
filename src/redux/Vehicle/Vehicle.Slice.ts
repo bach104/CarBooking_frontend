@@ -1,216 +1,313 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getApiUrl } from '../../utils/dbUrl';
-import { Vehicle } from '../../types/Vehicle.types';
+// slices/Vehicle/Vehicle.Slice.ts - COMPLETE FIXED VERSION
 
-export const vehicleApi = {
-  getAllVehicles: async (token: string): Promise<Vehicle[]> => {
-    const response = await fetch(getApiUrl('/vehicles'), {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch vehicles');
-    }
-    const data = await response.json();
-    return data.data;
-  },
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { vehicleApi } from './Vehicle.Api';
+import {
+  Vehicle,
+  VehicleFormData,
+  VehicleUpdatePayload,
+  VehicleStatusUpdatePayload,
+  VehicleStats,
+  VehicleSearchParams,
+  VehicleSearchResponse,
+  VehicleFilters,
+  VehicleStatus,
+  VehicleSeatCount,
+} from '../../types/Vehicle.types';
 
-  getVehicleById: async (id: string, token: string): Promise<Vehicle> => {
-    const response = await fetch(getApiUrl(`/vehicles/${id}`), {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch vehicle');
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  getAvailableVehicles: async (token: string, date?: string, vehicleTypeId?: string, passengers?: number): Promise<Vehicle[]> => {
-    let url = '/vehicles/available';
-    const params = new URLSearchParams();
-    if (date) params.append('date', date);
-    if (vehicleTypeId) params.append('vehicleTypeId', vehicleTypeId);
-    if (passengers) params.append('passengers', passengers.toString());
-    
-    if (params.toString()) {
-      url += `?${params.toString()}`;
-    }
-
-    const response = await fetch(getApiUrl(url), {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch available vehicles');
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  createVehicle: async (vehicle: Partial<Vehicle>, token: string): Promise<Vehicle> => {
-    const response = await fetch(getApiUrl('/vehicles'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(vehicle),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to create vehicle');
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  updateVehicle: async (id: string, vehicle: Partial<Vehicle>, token: string): Promise<Vehicle> => {
-    const response = await fetch(getApiUrl(`/vehicles/${id}`), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(vehicle),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update vehicle');
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  updateVehicleStatus: async (id: string, status: string, token: string): Promise<Vehicle> => {
-    const response = await fetch(getApiUrl(`/vehicles/${id}/status`), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ status }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update vehicle status');
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  deleteVehicle: async (id: string, token: string): Promise<void> => {
-    const response = await fetch(getApiUrl(`/vehicles/${id}`), {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error('Failed to delete vehicle');
-    }
-  },
-};
-
-// Định nghĩa interface cho state
 interface VehicleState {
   vehicles: Vehicle[];
   currentVehicle: Vehicle | null;
-  availableVehicles: Vehicle[];
+  stats: VehicleStats | null;
   loading: boolean;
   error: string | null;
+  success: boolean;
+  message: string | null;
+  pagination: {
+    current_page: number;
+    total_pages: number;
+    total_items: number;
+    items_per_page: number;
+  } | null;
 }
 
-// Initial state
 const initialState: VehicleState = {
   vehicles: [],
   currentVehicle: null,
-  availableVehicles: [],
+  stats: null,
   loading: false,
   error: null,
+  success: false,
+  message: null,
+  pagination: null,
 };
 
-// Async thunks
+// Helper function to get token from multiple sources
+const getToken = (state: any): string | null => {
+  // Priority from Redux state
+  if (state.staff?.token) {
+    return state.staff.token;
+  }
+  // Fallback to localStorage
+  const localToken = localStorage.getItem('staffToken');
+  if (localToken) {
+    return localToken;
+  }
+  return null;
+};
+
+// Enhanced ID validation
+const isValidId = (id: string): boolean => {
+  console.log('🔍 isValidId called with:', id, 'type:', typeof id);
+  
+  // Must be truthy
+  if (!id) {
+    console.warn('❌ isValidId failed: id is falsy');
+    return false;
+  }
+  
+  // Cannot be the string "undefined" or "null"
+  if (id === 'undefined' || id === 'null') {
+    console.warn(`❌ isValidId failed: id is string "${id}"`);
+    return false;
+  }
+  
+  // Check if it's a valid MongoDB ObjectId format (24 hex characters)
+  const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+  if (!objectIdRegex.test(id)) {
+    console.warn(`❌ isValidId failed: "${id}" is not a valid ObjectId format`);
+    return false;
+  }
+  
+  console.log('✅ isValidId passed');
+  return true;
+};
+
+// Async Thunks
+
+// Thêm xe mới
+export const addVehicle = createAsyncThunk(
+  'vehicle/add',
+  async (payload: VehicleFormData, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as any;
+      const token = getToken(state);
+      
+      if (!token) {
+        throw new Error('Vui lòng đăng nhập lại để thêm xe');
+      }
+      
+      console.log('🚀 addVehicle - Payload:', payload);
+      const response = await vehicleApi.addVehicle(payload, token);
+      console.log('✅ addVehicle success:', response);
+      return response;
+    } catch (error: any) {
+      console.error('❌ addVehicle error:', error);
+      return rejectWithValue(error.message || 'Thêm xe thất bại');
+    }
+  }
+);
+
+// Lấy tất cả xe
 export const fetchAllVehicles = createAsyncThunk(
   'vehicle/fetchAll',
-  async (token: string, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
-      return await vehicleApi.getAllVehicles(token);
+      const state = getState() as any;
+      const token = getToken(state);
+      console.log('📋 Fetching all vehicles, token exists:', !!token);
+      const response = await vehicleApi.getAllVehicles(token || undefined);
+      console.log('✅ Fetched vehicles count:', response.length);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      console.error('❌ fetchAllVehicles error:', error);
+      return rejectWithValue(error.message || 'Lấy danh sách xe thất bại');
     }
   }
 );
 
+// Lấy xe theo ID
 export const fetchVehicleById = createAsyncThunk(
   'vehicle/fetchById',
-  async ({ id, token }: { id: string; token: string }, { rejectWithValue }) => {
+  async (id: string, { getState, rejectWithValue }) => {
     try {
-      return await vehicleApi.getVehicleById(id, token);
+      if (!isValidId(id)) {
+        throw new Error('ID xe không hợp lệ');
+      }
+      
+      const state = getState() as any;
+      const token = getToken(state);
+      const response = await vehicleApi.getVehicleById(id, token || undefined);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'Lấy thông tin xe thất bại');
     }
   }
 );
 
-export const fetchAvailableVehicles = createAsyncThunk(
-  'vehicle/fetchAvailable',
-  async ({ token, date, vehicleTypeId, passengers }: { token: string; date?: string; vehicleTypeId?: string; passengers?: number }, { rejectWithValue }) => {
+// Lấy xe theo trạng thái
+export const fetchVehiclesByStatus = createAsyncThunk(
+  'vehicle/fetchByStatus',
+  async (status: VehicleStatus, { getState, rejectWithValue }) => {
     try {
-      return await vehicleApi.getAvailableVehicles(token, date, vehicleTypeId, passengers);
+      const state = getState() as any;
+      const token = getToken(state);
+      const response = await vehicleApi.getVehiclesByStatus(status, token || undefined);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'Lấy danh sách xe theo trạng thái thất bại');
     }
   }
 );
 
-export const createVehicle = createAsyncThunk(
-  'vehicle/create',
-  async ({ vehicle, token }: { vehicle: Partial<Vehicle>; token: string }, { rejectWithValue }) => {
+// Lấy xe theo số chỗ
+export const fetchVehiclesBySeats = createAsyncThunk(
+  'vehicle/fetchBySeats',
+  async (seats: VehicleSeatCount, { getState, rejectWithValue }) => {
     try {
-      return await vehicleApi.createVehicle(vehicle, token);
+      const state = getState() as any;
+      const token = getToken(state);
+      const response = await vehicleApi.getVehiclesBySeats(seats, token || undefined);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'Lấy danh sách xe theo số chỗ thất bại');
     }
   }
 );
 
+// Tìm kiếm xe
+export const searchVehicles = createAsyncThunk(
+  'vehicle/search',
+  async (params: VehicleSearchParams, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as any;
+      const token = getToken(state);
+      const response = await vehicleApi.searchVehicles(params, token || undefined);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Tìm kiếm xe thất bại');
+    }
+  }
+);
+
+// Lọc xe
+export const filterVehicles = createAsyncThunk(
+  'vehicle/filter',
+  async (filters: VehicleFilters, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as any;
+      const token = getToken(state);
+      const response = await vehicleApi.getVehiclesByFilters(filters, token || undefined);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Lọc xe thất bại');
+    }
+  }
+);
+
+// Cập nhật xe
 export const updateVehicle = createAsyncThunk(
   'vehicle/update',
-  async ({ id, vehicle, token }: { id: string; vehicle: Partial<Vehicle>; token: string }, { rejectWithValue }) => {
+  async ({ id, payload }: { id: string; payload: VehicleUpdatePayload }, { getState, rejectWithValue }) => {
     try {
-      return await vehicleApi.updateVehicle(id, vehicle, token);
+      console.log('📝 updateVehicle called with ID:', id, 'type:', typeof id);
+      
+      if (!isValidId(id)) {
+        throw new Error(`ID xe không hợp lệ: ${id}`);
+      }
+      
+      const state = getState() as any;
+      const token = getToken(state);
+      
+      if (!token) {
+        throw new Error('Vui lòng đăng nhập lại để cập nhật xe');
+      }
+      
+      console.log('📤 Calling API updateVehicle with ID:', id);
+      const response = await vehicleApi.updateVehicle(id, payload, token);
+      console.log('✅ Vehicle updated successfully:', response);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      console.error('❌ updateVehicle error:', error);
+      return rejectWithValue(error.message || 'Cập nhật xe thất bại');
     }
   }
 );
 
+// Cập nhật trạng thái xe
 export const updateVehicleStatus = createAsyncThunk(
   'vehicle/updateStatus',
-  async ({ id, status, token }: { id: string; status: string; token: string }, { rejectWithValue }) => {
+  async ({ id, payload }: { id: string; payload: VehicleStatusUpdatePayload }, { getState, rejectWithValue }) => {
     try {
-      return await vehicleApi.updateVehicleStatus(id, status, token);
+      console.log('🔄 updateVehicleStatus called with ID:', id, 'type:', typeof id);
+      
+      if (!isValidId(id)) {
+        throw new Error(`ID xe không hợp lệ: ${id}`);
+      }
+      
+      const state = getState() as any;
+      const token = getToken(state);
+      
+      if (!token) {
+        throw new Error('Vui lòng đăng nhập lại để cập nhật trạng thái');
+      }
+      
+      console.log('📤 Calling API updateVehicleStatus with ID:', id);
+      const response = await vehicleApi.updateVehicleStatus(id, payload, token);
+      console.log('✅ Vehicle status updated successfully:', response);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      console.error('❌ updateVehicleStatus error:', error);
+      return rejectWithValue(error.message || 'Cập nhật trạng thái xe thất bại');
     }
   }
 );
 
+// Xóa xe
 export const deleteVehicle = createAsyncThunk(
   'vehicle/delete',
-  async ({ id, token }: { id: string; token: string }, { rejectWithValue }) => {
+  async (id: string, { getState, rejectWithValue }) => {
     try {
-      await vehicleApi.deleteVehicle(id, token);
-      return id;
+      console.log('🗑️ deleteVehicle called with ID:', id, 'type:', typeof id);
+      
+      if (!isValidId(id)) {
+        console.error('❌ Invalid ID:', id);
+        throw new Error(`ID xe không hợp lệ: ${id}`);
+      }
+      
+      const state = getState() as any;
+      const token = getToken(state);
+      
+      if (!token) {
+        throw new Error('Vui lòng đăng nhập lại để xóa xe');
+      }
+      
+      console.log('📤 Calling API deleteVehicle with ID:', id);
+      const response = await vehicleApi.deleteVehicle(id, token);
+      console.log('✅ Delete successful, response:', response);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      console.error('❌ deleteVehicle error:', error.message);
+      return rejectWithValue(error.message || 'Xóa xe thất bại');
     }
   }
 );
 
-// Create slice
+// Lấy thống kê xe
+export const fetchVehicleStats = createAsyncThunk(
+  'vehicle/fetchStats',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as any;
+      const token = getToken(state);
+      const response = await vehicleApi.getVehicleStats(token || undefined);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Lấy thống kê xe thất bại');
+    }
+  }
+);
+
 const vehicleSlice = createSlice({
   name: 'vehicle',
   initialState,
@@ -218,16 +315,45 @@ const vehicleSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
-    clearCurrentVehicle: (state) => {
-      state.currentVehicle = null;
+    clearMessage: (state) => {
+      state.message = null;
+      state.success = false;
     },
-    clearAvailableVehicles: (state) => {
-      state.availableVehicles = [];
+    setCurrentVehicle: (state, action: PayloadAction<Vehicle | null>) => {
+      state.currentVehicle = action.payload;
+    },
+    resetState: (state) => {
+      state.vehicles = [];
+      state.currentVehicle = null;
+      state.stats = null;
+      state.loading = false;
+      state.error = null;
+      state.success = false;
+      state.message = null;
+      state.pagination = null;
     },
   },
   extraReducers: (builder) => {
     builder
-      // Fetch all vehicles
+      // Add Vehicle
+      .addCase(addVehicle.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = false;
+      })
+      .addCase(addVehicle.fulfilled, (state, action) => {
+        state.loading = false;
+        state.success = true;
+        state.message = 'Thêm xe thành công';
+        state.vehicles.unshift(action.payload);
+      })
+      .addCase(addVehicle.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+        state.success = false;
+      })
+
+      // Fetch All Vehicles
       .addCase(fetchAllVehicles.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -235,12 +361,14 @@ const vehicleSlice = createSlice({
       .addCase(fetchAllVehicles.fulfilled, (state, action) => {
         state.loading = false;
         state.vehicles = action.payload;
+        console.log('✅ Vehicles loaded in state:', state.vehicles.length);
       })
       .addCase(fetchAllVehicles.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      // Fetch vehicle by ID
+
+      // Fetch Vehicle By ID
       .addCase(fetchVehicleById.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -253,43 +381,80 @@ const vehicleSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
-      // Fetch available vehicles
-      .addCase(fetchAvailableVehicles.pending, (state) => {
+
+      // Fetch Vehicles By Status
+      .addCase(fetchVehiclesByStatus.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchAvailableVehicles.fulfilled, (state, action) => {
+      .addCase(fetchVehiclesByStatus.fulfilled, (state, action) => {
         state.loading = false;
-        state.availableVehicles = action.payload;
+        state.vehicles = action.payload;
       })
-      .addCase(fetchAvailableVehicles.rejected, (state, action) => {
+      .addCase(fetchVehiclesByStatus.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      // Create vehicle
-      .addCase(createVehicle.pending, (state) => {
+
+      // Fetch Vehicles By Seats
+      .addCase(fetchVehiclesBySeats.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(createVehicle.fulfilled, (state, action) => {
+      .addCase(fetchVehiclesBySeats.fulfilled, (state, action) => {
         state.loading = false;
-        state.vehicles.unshift(action.payload);
+        state.vehicles = action.payload;
       })
-      .addCase(createVehicle.rejected, (state, action) => {
+      .addCase(fetchVehiclesBySeats.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      // Update vehicle
+
+      // Search Vehicles
+      .addCase(searchVehicles.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(searchVehicles.fulfilled, (state, action) => {
+        state.loading = false;
+        state.vehicles = action.payload.data;
+        state.pagination = action.payload.pagination;
+      })
+      .addCase(searchVehicles.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+
+      // Filter Vehicles
+      .addCase(filterVehicles.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(filterVehicles.fulfilled, (state, action) => {
+        state.loading = false;
+        state.vehicles = action.payload;
+      })
+      .addCase(filterVehicles.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+
+      // Update Vehicle
       .addCase(updateVehicle.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.success = false;
       })
       .addCase(updateVehicle.fulfilled, (state, action) => {
         state.loading = false;
+        state.success = true;
+        state.message = 'Cập nhật xe thành công';
+        
         const index = state.vehicles.findIndex(v => v._id === action.payload._id);
         if (index !== -1) {
           state.vehicles[index] = action.payload;
         }
+        
         if (state.currentVehicle?._id === action.payload._id) {
           state.currentVehicle = action.payload;
         }
@@ -297,52 +462,74 @@ const vehicleSlice = createSlice({
       .addCase(updateVehicle.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        state.success = false;
       })
-      // Update vehicle status
+
+      // Update Vehicle Status
       .addCase(updateVehicleStatus.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.success = false;
       })
       .addCase(updateVehicleStatus.fulfilled, (state, action) => {
         state.loading = false;
+        state.success = true;
+        state.message = 'Cập nhật trạng thái xe thành công';
+        
         const index = state.vehicles.findIndex(v => v._id === action.payload._id);
         if (index !== -1) {
           state.vehicles[index] = action.payload;
         }
+        
         if (state.currentVehicle?._id === action.payload._id) {
           state.currentVehicle = action.payload;
-        }
-        const availIndex = state.availableVehicles.findIndex(v => v._id === action.payload._id);
-        if (availIndex !== -1) {
-          state.availableVehicles[availIndex] = action.payload;
         }
       })
       .addCase(updateVehicleStatus.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        state.success = false;
       })
-      // Delete vehicle
+
+      // Delete Vehicle
       .addCase(deleteVehicle.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.success = false;
       })
       .addCase(deleteVehicle.fulfilled, (state, action) => {
         state.loading = false;
-        state.vehicles = state.vehicles.filter(v => v._id !== action.payload);
-        state.availableVehicles = state.availableVehicles.filter(v => v._id !== action.payload);
-        if (state.currentVehicle?._id === action.payload) {
+        state.success = true;
+        state.message = 'Xóa xe thành công';
+        
+        console.log('🗑️ Deleting vehicle with _id:', action.payload._id);
+        state.vehicles = state.vehicles.filter(v => v._id !== action.payload._id);
+        
+        if (state.currentVehicle?._id === action.payload._id) {
           state.currentVehicle = null;
         }
       })
       .addCase(deleteVehicle.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        state.success = false;
+      })
+
+      // Fetch Vehicle Stats
+      .addCase(fetchVehicleStats.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchVehicleStats.fulfilled, (state, action) => {
+        state.loading = false;
+        state.stats = action.payload;
+      })
+      .addCase(fetchVehicleStats.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-// Export actions
-export const { clearError, clearCurrentVehicle, clearAvailableVehicles } = vehicleSlice.actions;
-
-// Export reducer as default
+export const { clearError, clearMessage, setCurrentVehicle, resetState } = vehicleSlice.actions;
 export default vehicleSlice.reducer;

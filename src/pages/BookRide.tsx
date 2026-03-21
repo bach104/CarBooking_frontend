@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Calendar, Users, Car, CreditCard, Banknote, ArrowRight, CheckCircle2, Navigation, Search, MousePointer2 } from 'lucide-react';
 import { VehicleType } from '../types';
@@ -322,7 +322,7 @@ export default function BookRide() {
                           </div>
                         </InputGroup>
                         {pickupSuggestions.length > 0 && (
-                          <div className="absolute z-[1001] w-full mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="absolute z-1001 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                             {pickupSuggestions.map((s, i) => (
                               <button 
                                 key={i}
@@ -381,7 +381,7 @@ export default function BookRide() {
                           </div>
                         </InputGroup>
                         {dropoffSuggestions.length > 0 && (
-                          <div className="absolute z-[1001] w-full mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="absolute z-1001 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                             {dropoffSuggestions.map((s, i) => (
                               <button 
                                 key={i}
@@ -458,14 +458,14 @@ export default function BookRide() {
                   <button 
                     onClick={handleNext}
                     disabled={!formData.booking.pickup || !formData.booking.dropoff || !formData.booking.date}
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 text-white py-5 rounded-[2rem] font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all shadow-xl shadow-emerald-200"
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 text-white py-5 rounded-4xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all shadow-xl shadow-emerald-200"
                   >
                     Tiếp Theo <ArrowRight size={20} />
                   </button>
                 </div>
 
                 {/* Map View */}
-                <div className="h-[400px] lg:h-auto min-h-[400px] rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-inner relative">
+                <div className="h-400 lg:h-auto min-h-400 rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-inner relative">
                   <MapContainer center={[21.0285, 105.8542]} zoom={13} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -488,7 +488,7 @@ export default function BookRide() {
                     <MapEvents onMapClick={handleMapClick} />
                   </MapContainer>
                   {selectingFor && (
-                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] bg-white px-6 py-3 rounded-full shadow-2xl border border-emerald-100 flex items-center gap-3 animate-bounce">
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-1000 bg-white px-6 py-3 rounded-full shadow-2xl border border-emerald-100 flex items-center gap-3 animate-bounce">
                       <MousePointer2 className={selectingFor === 'pickup' ? 'text-emerald-500' : 'text-red-500'} size={20} />
                       <span className="font-black text-sm uppercase tracking-widest text-gray-700">
                         Click vào bản đồ để chọn {selectingFor === 'pickup' ? 'điểm đón' : 'điểm đến'}
@@ -496,7 +496,7 @@ export default function BookRide() {
                     </div>
                   )}
                   {!pickupCoords && !dropoffCoords && !selectingFor && (
-                    <div className="absolute inset-0 bg-gray-900/5 backdrop-blur-[2px] z-[1000] flex items-center justify-center p-8 text-center pointer-events-none">
+                    <div className="absolute inset-0 bg-gray-900/5 backdrop-blur-[2px] z-1000 flex items-center justify-center p-8 text-center pointer-events-none">
                       <div className="bg-white p-6 rounded-3xl shadow-xl max-w-xs">
                         <Navigation className="mx-auto text-emerald-500 mb-4" size={32} />
                         <p className="text-gray-500 font-medium">Nhập địa chỉ để xem lộ trình trên bản đồ</p>
@@ -545,7 +545,7 @@ export default function BookRide() {
                   <button 
                     onClick={handleNext}
                     disabled={!formData.customer.name || !formData.customer.phone}
-                    className="flex-[2] bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl shadow-emerald-100"
+                    className="flex-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-xl shadow-emerald-100"
                   >
                     Tiếp Theo
                   </button>
@@ -557,7 +557,7 @@ export default function BookRide() {
               <div className="max-w-2xl mx-auto space-y-8">
                 <h2 className="text-3xl font-black text-gray-900">Xác Nhận & Thanh Toán</h2>
                 
-                <div className="bg-emerald-50 p-8 rounded-[2rem] border border-emerald-100 shadow-inner">
+                <div className="bg-emerald-50 p-8 rounded-4xl border border-emerald-100 shadow-inner">
                   <div className="flex justify-between items-center mb-6">
                     <span className="text-emerald-700 font-bold">Tổng cộng:</span>
                     <span className="text-3xl font-black text-emerald-600">{formData.booking.price.toLocaleString('vi-VN')}đ</span>
@@ -612,7 +612,7 @@ export default function BookRide() {
                   <button onClick={() => setStep(2)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-5 rounded-2xl font-bold transition-all">Quay Lại</button>
                   <button 
                     onClick={handleSubmit}
-                    className="flex-[2] bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all shadow-xl shadow-emerald-200"
+                    className="flex-2 bg-emerald-500 hover:bg-emerald-600 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all shadow-xl shadow-emerald-200"
                   >
                     Xác Nhận Đặt Xe <CheckCircle2 size={20} />
                   </button>

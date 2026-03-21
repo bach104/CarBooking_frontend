@@ -1,13 +1,10 @@
-// src/redux/Driver/Driver.Slice.ts
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { driverApi } from './Driver.Api';
 import { 
   Driver, 
-  DriverLoginResponse,
   DriverRegisterPayload,
   DriverLoginPayload 
 } from '../../types/Driver.types';
-
 interface DriverState {
   currentDriver: Driver | null;
   token: string | null;
@@ -16,15 +13,33 @@ interface DriverState {
   success: boolean;
   message: string | null;
 }
-
-// Khôi phục state từ localStorage khi khởi tạo
 const loadState = (): DriverState => {
   try {
     const token = localStorage.getItem('driverToken');
     const driverInfo = localStorage.getItem('driverInfo');
     
+    console.log('📦 Loading driver state from localStorage:', { 
+      hasToken: !!token, 
+      hasDriverInfo: !!driverInfo,
+      tokenPreview: token ? `${token.substring(0, 20)}...` : null
+    });
+    
+    let currentDriver = null;
+    if (driverInfo) {
+      try {
+        currentDriver = JSON.parse(driverInfo);
+        console.log('📦 Loaded driver info:', { 
+          id: currentDriver._id, 
+          name: currentDriver.name,
+          status: currentDriver.status 
+        });
+      } catch (e) {
+        console.error('Error parsing driver info:', e);
+      }
+    }
+    
     return {
-      currentDriver: driverInfo ? JSON.parse(driverInfo) : null,
+      currentDriver,
       token: token || null,
       loading: false,
       error: null,
@@ -65,6 +80,9 @@ export const driverLogin = createAsyncThunk(
   async (payload: DriverLoginPayload, { rejectWithValue }) => {
     try {
       const response = await driverApi.login(payload);
+      console.log('✅ Login response received, token:', response.token ? 'Yes' : 'No');
+      console.log('✅ Driver status from login:', response.status);
+      
       // Lưu token và driver info vào localStorage
       localStorage.setItem('driverToken', response.token);
       localStorage.setItem('driverInfo', JSON.stringify({
@@ -76,6 +94,7 @@ export const driverLogin = createAsyncThunk(
         status: response.status,
         created_at: new Date().toISOString(),
       }));
+      
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Đăng nhập thất bại');
@@ -104,17 +123,69 @@ export const driverLogout = createAsyncThunk(
 // Lấy thông tin tài xế hiện tại
 export const fetchCurrentDriver = createAsyncThunk(
   'driver/fetchCurrent',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
       const response = await driverApi.getCurrentDriver();
       // Cập nhật localStorage
       localStorage.setItem('driverInfo', JSON.stringify(response));
+      console.log('✅ Current driver fetched, status:', response.status);
       return response;
     } catch (error: any) {
-      // Nếu lỗi, xóa localStorage
-      localStorage.removeItem('driverToken');
-      localStorage.removeItem('driverInfo');
+      // Nếu lỗi 401 (unauthorized), xóa localStorage
+      if (error.status === 401) {
+        localStorage.removeItem('driverToken');
+        localStorage.removeItem('driverInfo');
+      }
       return rejectWithValue(error.message || 'Lấy thông tin thất bại');
+    }
+  }
+);
+
+// Lấy thông tin tài xế theo ID (cho polling)
+export const fetchDriverById = createAsyncThunk(
+  'driver/fetchById',
+  async (driverId: string, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as { driver: DriverState };
+      const token = state.driver.token;
+      
+      const response = await driverApi.getDriverById(driverId, token);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Lấy thông tin tài xế thất bại');
+    }
+  }
+);
+
+// Lấy status chỉ (cho polling nhanh)
+export const fetchDriverStatus = createAsyncThunk(
+  'driver/fetchStatus',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as { driver: DriverState };
+      const token = state.driver.token;
+      
+      if (!token) {
+        return rejectWithValue('No token found');
+      }
+      
+      const response = await fetch('/api/driver/status', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch status');
+      }
+      
+      return data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Lấy trạng thái thất bại');
     }
   }
 );
@@ -139,7 +210,76 @@ const driverSlice = createSlice({
       state.message = null;
       localStorage.removeItem('driverToken');
       localStorage.removeItem('driverInfo');
+      console.log('🔄 Driver state reset');
     },
+    // Cập nhật thông tin tài xế (dùng cho polling hoặc WebSocket)
+    updateDriverInfo: (state, action: PayloadAction<Driver>) => {
+      const oldStatus = state.currentDriver?.status;
+      const newStatus = action.payload.status;
+      const oldId = state.currentDriver?._id;
+      const newId = action.payload._id;
+      
+      console.log('🔄 updateDriverInfo called:', {
+        oldStatus,
+        newStatus,
+        oldId,
+        newId,
+        hasCurrentDriver: !!state.currentDriver,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Kiểm tra nếu là cùng một driver
+      if (oldId && newId && oldId !== newId) {
+        console.warn('⚠️ Driver ID mismatch! Updating anyway...');
+      }
+      
+      if (state.currentDriver) {
+        // Cập nhật từng field
+        state.currentDriver = {
+          ...state.currentDriver,
+          ...action.payload
+        };
+      } else {
+        state.currentDriver = action.payload;
+      }
+      
+      // Lưu vào localStorage
+      localStorage.setItem('driverInfo', JSON.stringify(state.currentDriver));
+      console.log('💾 Driver info saved to localStorage, status:', state.currentDriver.status);
+      
+      // Trigger event để các component khác có thể lắng nghe
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('driverStatusChanged', { 
+          detail: { oldStatus, newStatus, driver: state.currentDriver }
+        }));
+      }
+    },
+    // Cập nhật trạng thái tài xế
+    updateDriverStatus: (state, action: PayloadAction<'active' | 'inactive' | 'busy'>) => {
+      if (state.currentDriver) {
+        const oldStatus = state.currentDriver.status;
+        const newStatus = action.payload;
+        
+        console.log(`🔄 Updating driver status: ${oldStatus} → ${newStatus}`);
+        state.currentDriver.status = newStatus;
+        
+        // Cập nhật localStorage
+        localStorage.setItem('driverInfo', JSON.stringify(state.currentDriver));
+        
+        // Trigger event
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('driverStatusChanged', { 
+            detail: { oldStatus, newStatus, driver: state.currentDriver }
+          }));
+        }
+      }
+    },
+    // Cập nhật token
+    setToken: (state, action: PayloadAction<string>) => {
+      state.token = action.payload;
+      localStorage.setItem('driverToken', action.payload);
+      console.log('🔑 Token saved to localStorage');
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -180,6 +320,7 @@ const driverSlice = createSlice({
         state.token = action.payload.token;
         state.success = true;
         state.message = 'Đăng nhập thành công';
+        console.log('✅ Driver logged in, status:', state.currentDriver.status);
       })
       .addCase(driverLogin.rejected, (state, action) => {
         state.loading = false;
@@ -197,11 +338,13 @@ const driverSlice = createSlice({
         state.token = null;
         state.success = true;
         state.message = 'Đăng xuất thành công';
+        console.log('✅ Driver logged out');
       })
       .addCase(driverLogout.rejected, (state) => {
         state.loading = false;
         state.currentDriver = null;
         state.token = null;
+        console.log('⚠️ Driver logout with errors, state cleared anyway');
       })
 
       // Lấy thông tin hiện tại
@@ -213,15 +356,69 @@ const driverSlice = createSlice({
         state.loading = false;
         state.currentDriver = action.payload;
         state.success = true;
+        console.log('✅ Current driver fetched, status:', state.currentDriver?.status);
       })
-      .addCase(fetchCurrentDriver.rejected, (state) => {
+      .addCase(fetchCurrentDriver.rejected, (state, action) => {
         state.loading = false;
         state.currentDriver = null;
         state.token = null;
-        state.error = 'Phiên đăng nhập hết hạn';
+        state.error = action.payload as string || 'Phiên đăng nhập hết hạn';
+        console.log('❌ Failed to fetch current driver:', state.error);
+      })
+
+      // Lấy thông tin tài xế theo ID (polling)
+      .addCase(fetchDriverById.pending, (state) => {
+        // Không set loading để tránh ảnh hưởng UI
+      })
+      .addCase(fetchDriverById.fulfilled, (state, action) => {
+        // Cập nhật thông tin driver nếu có thay đổi
+        if (state.currentDriver && action.payload) {
+          const oldStatus = state.currentDriver.status;
+          const newStatus = action.payload.status;
+          
+          if (oldStatus !== newStatus) {
+            console.log(`🔄 [fetchDriverById] Driver status changed: ${oldStatus} → ${newStatus}`);
+          }
+          
+          state.currentDriver = {
+            ...state.currentDriver,
+            ...action.payload
+          };
+          // Cập nhật localStorage
+          localStorage.setItem('driverInfo', JSON.stringify(state.currentDriver));
+        }
+      })
+      .addCase(fetchDriverById.rejected, (state, action) => {
+        console.error('❌ Failed to fetch driver info:', action.payload);
+      })
+      
+      // Lấy status chỉ (polling nhanh)
+      .addCase(fetchDriverStatus.fulfilled, (state, action) => {
+        if (state.currentDriver && action.payload) {
+          const oldStatus = state.currentDriver.status;
+          const newStatus = action.payload.status;
+          
+          if (oldStatus !== newStatus) {
+            console.log(`🔄 [fetchDriverStatus] Status changed: ${oldStatus} → ${newStatus}`);
+            state.currentDriver.status = newStatus;
+            state.currentDriver.updated_at = action.payload.updated_at;
+            localStorage.setItem('driverInfo', JSON.stringify(state.currentDriver));
+          }
+        }
+      })
+      .addCase(fetchDriverStatus.rejected, (state, action) => {
+        console.error('❌ Failed to fetch driver status:', action.payload);
       });
   },
 });
 
-export const { clearError, clearMessage, resetState } = driverSlice.actions;
+export const { 
+  clearError, 
+  clearMessage, 
+  resetState,
+  updateDriverInfo,
+  updateDriverStatus,
+  setToken
+} = driverSlice.actions;
+
 export default driverSlice.reducer;

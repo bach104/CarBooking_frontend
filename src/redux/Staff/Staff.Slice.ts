@@ -3,8 +3,8 @@ import { staffApi } from './Staff.Api';
 import { 
   Staff, 
   StaffState, 
-  StaffRegisterPayload,  // Thêm import này
-  StaffLoginPayload      // Thêm import này nếu cần
+  StaffRegisterPayload,
+  StaffLoginPayload
 } from '../../types/Staff.types';
 
 // Load state from localStorage
@@ -13,10 +13,23 @@ const loadState = (): Partial<StaffState> => {
     const token = localStorage.getItem('staffToken');
     const staffInfo = localStorage.getItem('staffInfo');
     
-    return {
-      token: token || null,
-      currentStaff: staffInfo ? JSON.parse(staffInfo) : null,
-      isAuthenticated: !!token && !!staffInfo
+    console.log('🔄 Loading staff state from localStorage:', { 
+      hasToken: !!token, 
+      hasStaffInfo: !!staffInfo 
+    });
+    
+    if (token && staffInfo) {
+      return {
+        token: token,
+        currentStaff: JSON.parse(staffInfo),
+        isAuthenticated: true
+      };
+    }
+    
+    return { 
+      token: null, 
+      currentStaff: null,
+      isAuthenticated: false 
     };
   } catch (error) {
     console.error('Error loading state from localStorage:', error);
@@ -68,7 +81,6 @@ export const staffLogout = createAsyncThunk(
   async (_, { dispatch, rejectWithValue }) => {
     try {
       await staffApi.logout();
-      // Không cần dispatch(logout()) ở đây vì sẽ được xử lý trong extraReducers
       return { success: true };
     } catch (error: any) {
       // Vẫn logout dù API lỗi
@@ -83,7 +95,11 @@ export const fetchCurrentStaff = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const { staff } = getState() as { staff: StaffState };
-      const response = await staffApi.getCurrentStaff(staff.token || undefined);
+      let token = staff.token;
+      if (!token) {
+        token = localStorage.getItem('staffToken');
+      }
+      const response = await staffApi.getCurrentStaff(token || undefined);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch staff');
@@ -96,7 +112,11 @@ export const fetchAllStaff = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const { staff } = getState() as { staff: StaffState };
-      const response = await staffApi.getAllStaff(staff.token || undefined);
+      let token = staff.token;
+      if (!token) {
+        token = localStorage.getItem('staffToken');
+      }
+      const response = await staffApi.getAllStaff(token || undefined);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch staff list');
@@ -109,7 +129,11 @@ export const updateStaff = createAsyncThunk(
   async ({ id, data }: { id: string; data: Partial<Staff> }, { getState, rejectWithValue }) => {
     try {
       const { staff } = getState() as { staff: StaffState };
-      const response = await staffApi.updateStaff(id, data, staff.token || undefined);
+      let token = staff.token;
+      if (!token) {
+        token = localStorage.getItem('staffToken');
+      }
+      const response = await staffApi.updateStaff(id, data, token || undefined);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to update staff');
@@ -140,6 +164,13 @@ const staffSlice = createSlice({
       state.currentStaff = action.payload;
       localStorage.setItem('staffInfo', JSON.stringify(action.payload));
     },
+    refreshToken: (state) => {
+      const token = localStorage.getItem('staffToken');
+      if (token && !state.token) {
+        state.token = token;
+        state.isAuthenticated = true;
+      }
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -237,6 +268,11 @@ const staffSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
         state.isAuthenticated = false;
+        // Clear invalid token
+        localStorage.removeItem('staffToken');
+        localStorage.removeItem('staffInfo');
+        state.token = null;
+        state.currentStaff = null;
       })
       
       // Fetch all staff
@@ -266,5 +302,5 @@ const staffSlice = createSlice({
   },
 });
 
-export const { logout, clearError, setStaff } = staffSlice.actions;
+export const { logout, clearError, setStaff, refreshToken } = staffSlice.actions;
 export default staffSlice.reducer;

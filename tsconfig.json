@@ -9,18 +9,27 @@
       "DOM",
       "DOM.Iterable"
     ],
+    "esModuleInterop": true,
     "skipLibCheck": true,
+    "strict": true,
     "moduleResolution": "bundler",
+    "resolveJsonModule": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "types": ["react", "react-dom", "vite/client"], 
     "paths": {
       "@/*": [
-        "./*"
+        "./*",
+        "./src/*"
       ]
     },
+    
     "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    "noEmit": true,
+    
+  } 
+
 }

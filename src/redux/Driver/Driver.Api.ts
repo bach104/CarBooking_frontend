@@ -17,7 +17,7 @@ export const driverApi = {
       headers: {
         'Content-Type': 'application/json',
       },
-      credentials: 'include', // Quan trọng: để gửi/nhận cookie
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     
@@ -41,7 +41,7 @@ export const driverApi = {
       headers: {
         'Content-Type': 'application/json',
       },
-      credentials: 'include', // Quan trọng: để gửi/nhận cookie
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     
@@ -92,6 +92,31 @@ export const driverApi = {
     
     return data.data as Driver;
   },
+
+  // Lấy thông tin tài xế theo ID (dùng cho polling)
+  getDriverById: async (driverId: string, token: string | null): Promise<Driver> => {
+    const response = await fetch(getApiUrl(`/staff/drivers/${driverId}`), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      credentials: 'include',
+    });
+    
+    const data: ApiResponse<Driver> = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Lấy thông tin tài xế thất bại');
+    }
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Lấy thông tin tài xế thất bại');
+    }
+    
+    return data.data as Driver;
+  },
+
   updateProfile: async (payload: DriverUpdateProfilePayload): Promise<Driver> => {
     const response = await fetch(getApiUrl('/driver/profile'), {
       method: 'PUT',

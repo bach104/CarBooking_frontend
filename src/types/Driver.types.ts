@@ -1,4 +1,3 @@
-// Types từ file hiện có
 export interface Driver {
   _id: string;
   name: string;

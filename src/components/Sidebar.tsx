@@ -1,4 +1,4 @@
-import { Calendar,Home, BarChart3, UserCheck, Car, Users, LogOut, LayoutDashboard, X } from 'lucide-react';
+import { Calendar,Home, BarChart3, UserCheck, Car, Users, LogOut } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
