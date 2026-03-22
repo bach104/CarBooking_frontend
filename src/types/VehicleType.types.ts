@@ -1,58 +1,30 @@
-// types/VehicleType.types.ts
 
 export interface VehicleType {
   _id: string;
   type_name: string;
-  seats: number;
+  seats: 4 | 7 | 9 | 16 | 29 | 45;
   base_price: number;
   price_per_km: number;
-  description: string;
-  image_url: string;
+  description?: string;
+  image_url?: string;
+  is_active: boolean;
   created_at: string;
+  updated_at: string;
+  type_text?: string;
 }
 
-export interface VehicleTypeFormData {
-  type_name: string;
-  seats: number;
-  base_price: number;
-  price_per_km: number;
-  description?: string;
-  image_url?: string;
-}
-
-export interface VehicleTypeUpdatePayload {
-  type_name?: string;
-  seats?: number;
-  base_price?: number;
-  price_per_km?: number;
-  description?: string;
-  image_url?: string;
-}
-
-export interface VehicleTypeStats {
-  total: number;
-  by_seats: Array<{
-    _id: number;
-    count: number;
-  }>;
-}
-
-export interface ApiResponse<T = any> {
-  success: boolean;
-  message: string;
-  data?: T;
-  errors?: string[];
-}
-
-export const DEFAULT_VEHICLE_TYPES: Omit<VehicleTypeFormData, 'image_url'>[] = [
-  { type_name: 'Xe 4 chỗ', seats: 4, base_price: 50000, price_per_km: 12000, description: 'Xe du lịch 4 chỗ phù hợp cho gia đình nhỏ' },
-  { type_name: 'Xe 7 chỗ', seats: 7, base_price: 70000, price_per_km: 15000, description: 'Xe gia đình 7 chỗ thoải mái' },
-  { type_name: 'Xe 9 chỗ', seats: 9, base_price: 90000, price_per_km: 18000, description: 'Xe 9 chỗ phù hợp cho nhóm bạn' },
-  { type_name: 'Xe 16 chỗ', seats: 16, base_price: 150000, price_per_km: 22000, description: 'Xe 16 chỗ phù hợp cho tour du lịch nhóm' },
-  { type_name: 'Xe 29 chỗ', seats: 29, base_price: 250000, price_per_km: 28000, description: 'Xe khách 29 chỗ' },
-  { type_name: 'Xe 45 chỗ', seats: 45, base_price: 350000, price_per_km: 35000, description: 'Xe khách lớn 45 chỗ' },
+export const VEHICLE_TYPE_OPTIONS: VehicleType[] = [
+  { _id: '4', type_name: 'Xe 4 chỗ', seats: 4, base_price: 1500000, price_per_km: 10000, is_active: true, created_at: '', updated_at: '' },
+  { _id: '7', type_name: 'Xe 7 chỗ', seats: 7, base_price: 1800000, price_per_km: 11000, is_active: true, created_at: '', updated_at: '' },
+  { _id: '9', type_name: 'Xe 9 chỗ', seats: 9, base_price: 2600000, price_per_km: 12000, is_active: true, created_at: '', updated_at: '' },
+  { _id: '16', type_name: 'Xe 16 chỗ', seats: 16, base_price: 2000000, price_per_km: 9000, is_active: true, created_at: '', updated_at: '' },
+  { _id: '29', type_name: 'Xe 29 chỗ', seats: 29, base_price: 3000000, price_per_km: 11000, is_active: true, created_at: '', updated_at: '' },
+  { _id: '45', type_name: 'Xe 45 chỗ', seats: 45, base_price: 5700000, price_per_km: 20000, is_active: true, created_at: '', updated_at: '' }
 ];
 
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-};
+export interface VehicleTypeState {
+  vehicleTypes: VehicleType[];
+  selectedVehicleType: VehicleType | null;
+  loading: boolean;
+  error: string | null;
+}

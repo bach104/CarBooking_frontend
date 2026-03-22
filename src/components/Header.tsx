@@ -1,10 +1,16 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Car, Menu, X, Phone, User } from 'lucide-react';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Đóng menu khi chuyển route
+  React.useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location]);
 
   const menuItems = [
     { label: 'Trang Chủ', path: '/' },
@@ -17,7 +23,7 @@ export default function Header() {
       <div className="container mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
+          <Link to="/" className="flex items-center gap-2 group shrink-0">
             <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-500 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform">
               <Car size={20} className="text-white md:w-6 md:h-6" />
             </div>
@@ -63,20 +69,25 @@ export default function Header() {
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="md:hidden p-2 text-gray-600 hover:text-emerald-500 transition-colors"
+            aria-label={isMenuOpen ? 'Đóng menu' : 'Mở menu'}
           >
             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
 
         {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <nav className="md:hidden py-4 border-t border-gray-100 animate-in slide-in-from-top">
+        <div 
+          className={`
+            md:hidden overflow-hidden transition-all duration-300 ease-in-out
+            ${isMenuOpen ? 'max-h-400 opacity-100' : 'max-h-0 opacity-0'}
+          `}
+        >
+          <nav className="py-4 border-t border-gray-100">
             <div className="flex flex-col space-y-4">
               {menuItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
-                  onClick={() => setIsMenuOpen(false)}
                   className="text-sm font-bold text-gray-600 hover:text-emerald-500 transition-colors uppercase tracking-wider py-2"
                 >
                   {item.label}
@@ -85,14 +96,12 @@ export default function Header() {
               <div className="border-t border-gray-100 my-2"></div>
               <Link
                 to="/driver-login"
-                onClick={() => setIsMenuOpen(false)}
                 className="text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wider py-2 flex items-center gap-1"
               >
                 <User size={16} /> Đăng Nhập Tài Xế
               </Link>
               <Link
                 to="/staff-login"
-                onClick={() => setIsMenuOpen(false)}
                 className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-wider py-2"
               >
                 Đăng Nhập Nhân Viên
@@ -106,8 +115,16 @@ export default function Header() {
               </a>
             </div>
           </nav>
-        )}
+        </div>
       </div>
+
+      {/* Overlay cho mobile menu */}
+      {isMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-[-1] md:hidden"
+          onClick={() => setIsMenuOpen(false)}
+        />
+      )}
     </header>
   );
 }

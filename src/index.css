@@ -16,11 +16,17 @@
 .min-h-400{
     min-height: 400px;
 }
+.max-h-500 {
+  max-height: 500px;
+}
 .min-w-1000 {
   min-width: 1000px;
 }
 .min-w-600{
     min-width: 600px;
+}
+.min-w-140 {
+  min-width: 140px;
 }
 .z-1002 {
   z-index: 1002;
@@ -30,4 +36,8 @@
 }
 .max-w-200 {
   max-width: 200px;
+}
+
+.min-w-70 {
+  min-width: 70px;
 }

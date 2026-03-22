@@ -66,8 +66,9 @@ export const driverApi = {
     
     const data: ApiResponse<null> = await response.json();
     
+    // Không throw error nếu logout fail vì vẫn muốn xóa localStorage
     if (!response.ok || !data.success) {
-      throw new Error(data.message || 'Đăng xuất thất bại');
+      console.warn('Logout API failed, but clearing local storage anyway');
     }
   },
 
@@ -99,7 +100,7 @@ export const driverApi = {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
       credentials: 'include',
     });

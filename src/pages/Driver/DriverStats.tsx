@@ -1,86 +1,213 @@
-import React from 'react';
-import { DriverStats as DriverStatsType } from '../../types/Driver.types';
-import { TrendingUp, Star } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+// src/pages/driver/DriverStats.tsx
+import { DriverTripStats } from '../../types/DriverTrip.types';
+import { TrendingUp, Star, Award, DollarSign, CheckCircle, Clock } from 'lucide-react';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 
 interface DriverStatsProps {
-  stats: DriverStatsType;
+  stats: DriverTripStats;
 }
 
 export default function DriverStats({ stats }: DriverStatsProps) {
-  const getEarningsData = () => {
-    const last7Days = [...Array(7)].map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toISOString().split('T')[0];
-    }).reverse();
+  const completionRate = stats.totalTrips > 0 
+    ? Math.round((stats.completedTrips / stats.totalTrips) * 100) 
+    : 0;
 
-    return last7Days.map(date => ({
-      date: new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
-      earnings: Math.floor(Math.random() * 500) + 100
-    }));
+  // Sample earnings data (in real app, fetch from API)
+  const earningsData = [
+    { date: 'Thứ 2', earnings: 450000 },
+    { date: 'Thứ 3', earnings: 320000 },
+    { date: 'Thứ 4', earnings: 580000 },
+    { date: 'Thứ 5', earnings: 420000 },
+    { date: 'Thứ 6', earnings: 670000 },
+    { date: 'Thứ 7', earnings: 890000 },
+    { date: 'CN', earnings: 720000 },
+  ];
+
+  const ratingData = [
+    { name: '5 sao', value: 42, color: '#10B981' },
+    { name: '4 sao', value: 28, color: '#34D399' },
+    { name: '3 sao', value: 12, color: '#F59E0B' },
+    { name: '2 sao', value: 5, color: '#F97316' },
+    { name: '1 sao', value: 3, color: '#EF4444' },
+  ];
+
+  // ✅ FIX #1: Format currency for tooltip - proper typing with 'as any'
+  const formatCurrencyTooltip = (value: any): string => {
+    if (typeof value === 'number') {
+      return `${value.toLocaleString('vi-VN')}đ`;
+    }
+    return '0đ';
+  };
+
+  // ✅ FIX #2: Format Y axis ticks
+  const formatYAxisTick = (value: number): string => {
+    return `${(value / 1000).toFixed(0)}k`;
+  };
+
+  // ✅ FIX #3: Format rating tooltip - proper typing with 'as any'
+  const formatRatingTooltip = (value: any): string => {
+    if (typeof value === 'number') {
+      return `${value} đánh giá`;
+    }
+    return '0 đánh giá';
   };
 
   return (
     <div className="space-y-6">
-      {/* Earnings Chart */}
-      <div className="bg-white p-6 rounded-4xl shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-8">
-          <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
-            <TrendingUp className="text-emerald-500" size={20} /> Thu Nhập Tuần Này
+      {/* Completion Rate Card */}
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <TrendingUp className="text-emerald-500" size={20} />
+            Hiệu Suất Làm Việc
           </h3>
-          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Đơn vị: Nghìn VNĐ</div>
+          <div className="text-3xl font-black text-emerald-600">{completionRate}%</div>
         </div>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={getEarningsData()}>
-              <defs>
-                <linearGradient id="colorEarnings" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9CA3AF' }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9CA3AF' }} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                itemStyle={{ fontWeight: 'bold', color: '#10B981' }}
-              />
-              <Area type="monotone" dataKey="earnings" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorEarnings)" />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+          <div 
+            className="bg-linear-to-r from-emerald-500 to-emerald-400 h-full rounded-full transition-all duration-500"
+            style={{ width: `${completionRate}%` }}
+          />
+        </div>
+        <div className="flex justify-between mt-3 text-sm text-gray-500">
+          <span className="flex items-center gap-1">
+            <CheckCircle size={14} className="text-emerald-500" />
+            Hoàn thành: {stats.completedTrips}
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock size={14} className="text-gray-400" />
+            Tổng: {stats.totalTrips}
+          </span>
         </div>
       </div>
 
-      {/* Performance Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-4xl shadow-sm border border-gray-100">
-          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Hiệu Suất Chuyến</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-end">
-              <span className="text-sm font-bold text-gray-600">Tỷ lệ hoàn thành</span>
-              <span className="text-lg font-black text-emerald-600">
-                {stats.totalTrips > 0 ? Math.round((stats.completedTrips / stats.totalTrips) * 100) : 0}%
-              </span>
+      {/* Earnings Chart */}
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-6">
+          <DollarSign className="text-emerald-500" size={20} />
+          Thu Nhập Tuần Này
+        </h3>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={earningsData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+              <XAxis 
+                dataKey="date" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 12, fill: '#6B7280' }} 
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 12, fill: '#6B7280' }}
+                tickFormatter={formatYAxisTick}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  borderRadius: '12px', 
+                  border: 'none', 
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
+                }}
+                formatter={formatCurrencyTooltip as any}
+              />
+              <Bar 
+                dataKey="earnings" 
+                fill="#10B981" 
+                radius={[8, 8, 0, 0]} 
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+          <span className="text-sm text-gray-500">Tổng tuần</span>
+          <span className="text-2xl font-bold text-gray-800">
+            {earningsData.reduce((sum, d) => sum + d.earnings, 0).toLocaleString('vi-VN')}đ
+          </span>
+        </div>
+      </div>
+
+      {/* Rating and Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Rating Chart */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
+            <Star className="text-yellow-500" size={20} />
+            Đánh Giá
+          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-center">
+              <div className="text-4xl font-black text-gray-800">
+                {stats.rating.toFixed(1)}
+              </div>
+              <div className="text-sm text-gray-500">/ 5.0</div>
             </div>
-            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-              <div 
-                className="bg-emerald-500 h-full" 
-                style={{ width: `${stats.totalTrips > 0 ? (stats.completedTrips / stats.totalTrips) * 100 : 0}%` }}
-              ></div>
+            <div className="flex gap-0.5">
+              {[1, 2, 3, 4, 5].map(star => (
+                <Star 
+                  key={star} 
+                  size={24} 
+                  className={star <= Math.floor(stats.rating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}
+                />
+              ))}
             </div>
+          </div>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={ratingData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={40}
+                  outerRadius={60}
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  {ratingData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={formatRatingTooltip as any}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-4xl shadow-sm border border-gray-100">
-          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Đánh Giá Gần Đây</h3>
-          <div className="flex items-center gap-1 mb-2">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} size={16} className={i < Math.floor(stats.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'} />
-            ))}
-            <span className="ml-2 font-bold text-gray-900">{stats.rating || 0}/5.0</span>
+
+        {/* Quick Stats */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
+            <Award className="text-emerald-500" size={20} />
+            Thống Kê Nhanh
+          </h3>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-2xl">
+              <span className="text-gray-600 font-medium">Tổng thu nhập</span>
+              <span className="text-xl font-bold text-emerald-600">
+                {stats.earnings.toLocaleString('vi-VN')}đ
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-2xl">
+              <span className="text-gray-600 font-medium">Tổng số chuyến</span>
+              <span className="text-xl font-bold text-gray-800">
+                {stats.totalTrips}
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-2xl">
+              <span className="text-gray-600 font-medium">Chuyến hoàn thành</span>
+              <span className="text-xl font-bold text-emerald-600">
+                {stats.completedTrips}
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-2xl">
+              <span className="text-gray-600 font-medium">Đánh giá trung bình</span>
+              <span className="text-xl font-bold text-yellow-600">
+                {stats.rating.toFixed(1)} / 5
+              </span>
+            </div>
           </div>
-          <p className="text-xs text-gray-500 font-medium italic">"Tài xế rất nhiệt tình, lái xe an toàn."</p>
         </div>
       </div>
     </div>

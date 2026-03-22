@@ -1,114 +1,91 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { bookingApi } from './Booking.Api';
-import { Booking, CreateBookingPayload } from '../../types/Booking.types';
-
-interface BookingState {
-  bookings: Booking[];
-  currentBooking: Booking | null;
-  customerBookings: Booking[];
-  loading: boolean;
-  error: string | null;
-}
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import bookingApi from './Booking.Api';
+import { 
+  BookingState, 
+  Booking, 
+  BookingStatus, 
+  PriceCalculationResponse,
+  CreateBookingRequest,
+  PriceCalculationRequest
+} from '../../types/Booking.types';
 
 const initialState: BookingState = {
-  bookings: [],
   currentBooking: null,
-  customerBookings: [],
+  bookings: [],
+  bookingStatus: null,
+  priceCalculation: null,
   loading: false,
   error: null,
 };
 
-// Async thunks
-export const fetchAllBookings = createAsyncThunk(
-  'booking/fetchAll',
-  async (token: string, { rejectWithValue }) => {
+export const calculatePrice = createAsyncThunk(
+  'booking/calculatePrice',
+  async (data: PriceCalculationRequest, { rejectWithValue }) => {
     try {
-      return await bookingApi.getAllBookings(token);
+      const response = await bookingApi.calculatePrice(data);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-export const fetchBookingById = createAsyncThunk(
-  'booking/fetchById',
-  async ({ id, token }: { id: string; token: string }, { rejectWithValue }) => {
-    try {
-      return await bookingApi.getBookingById(id, token);
-    } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-export const fetchBookingsByPhone = createAsyncThunk(
-  'booking/fetchByPhone',
-  async (phone: string, { rejectWithValue }) => {
-    try {
-      return await bookingApi.getBookingsByCustomerPhone(phone);
-    } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'Tính giá thất bại');
     }
   }
 );
 
 export const createBooking = createAsyncThunk(
-  'booking/create',
-  async (payload: CreateBookingPayload, { rejectWithValue }) => {
+  'booking/createBooking',
+  async (data: CreateBookingRequest, { rejectWithValue }) => {
     try {
-      return await bookingApi.createBooking(payload);
+      const response = await bookingApi.createBooking(data);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'Đặt xe thất bại');
     }
   }
 );
 
-export const confirmBooking = createAsyncThunk(
-  'booking/confirm',
-  async ({ id, token }: { id: string; token: string }, { rejectWithValue }) => {
+export const getBookingById = createAsyncThunk(
+  'booking/getBookingById',
+  async (id: string, { rejectWithValue }) => {
     try {
-      const response = await bookingApi.confirmBooking(id, token);
-      return { id, booking: response };
+      const response = await bookingApi.getBookingById(id);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'Không thể lấy thông tin đơn đặt xe');
     }
   }
 );
 
-export const updateBookingStatus = createAsyncThunk(
-  'booking/updateStatus',
-  async ({ 
-    id, status, token, reason 
-  }: { id: string; status: string; token: string; reason?: string }, { rejectWithValue }) => {
+export const getBookingsByPhone = createAsyncThunk(
+  'booking/getBookingsByPhone',
+  async (phone: string, { rejectWithValue }) => {
     try {
-      const response = await bookingApi.updateBookingStatus(id, status, token, reason);
-      return { id, booking: response };
+      const response = await bookingApi.getBookingsByPhone(phone);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'Không thể lấy danh sách đơn đặt xe');
+    }
+  }
+);
+
+export const checkBookingStatus = createAsyncThunk(
+  'booking/checkBookingStatus',
+  async ({ id, phone }: { id: string; phone?: string }, { rejectWithValue }) => {
+    try {
+      const response = await bookingApi.checkBookingStatus(id, phone);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Không thể kiểm tra trạng thái đơn đặt xe');
     }
   }
 );
 
 export const cancelBooking = createAsyncThunk(
-  'booking/cancel',
-  async ({ id, token }: { id: string; token: string }, { rejectWithValue }) => {
+  'booking/cancelBooking',
+  async ({ id, reason }: { id: string; reason?: string }, { rejectWithValue }) => {
     try {
-      const response = await bookingApi.cancelBooking(id, token);
-      return { id, booking: response };
+      const response = await bookingApi.cancelBooking(id, { reason });
+      return { id, ...response };
     } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-export const completeBooking = createAsyncThunk(
-  'booking/complete',
-  async ({ id, token }: { id: string; token: string }, { rejectWithValue }) => {
-    try {
-      const response = await bookingApi.completeBooking(id, token);
-      return { id, booking: response };
-    } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'Hủy đơn đặt xe thất bại');
     }
   }
 );
@@ -117,120 +94,127 @@ const bookingSlice = createSlice({
   name: 'booking',
   initialState,
   reducers: {
-    clearError: (state) => {
-      state.error = null;
-    },
     clearCurrentBooking: (state) => {
       state.currentBooking = null;
     },
-    clearCustomerBookings: (state) => {
-      state.customerBookings = [];
+    clearBookings: (state) => {
+      state.bookings = [];
     },
+    clearBookingStatus: (state) => {
+      state.bookingStatus = null;
+    },
+    clearPriceCalculation: (state) => {
+      state.priceCalculation = null;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+    resetBookingState: () => initialState,
   },
   extraReducers: (builder) => {
     builder
-      // Fetch all bookings
-      .addCase(fetchAllBookings.pending, (state) => {
+      .addCase(calculatePrice.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchAllBookings.fulfilled, (state, action) => {
+      .addCase(calculatePrice.fulfilled, (state, action: PayloadAction<PriceCalculationResponse>) => {
         state.loading = false;
-        state.bookings = action.payload;
+        state.priceCalculation = action.payload;
       })
-      .addCase(fetchAllBookings.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      
-      // Fetch booking by ID
-      .addCase(fetchBookingById.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchBookingById.fulfilled, (state, action) => {
-        state.loading = false;
-        state.currentBooking = action.payload;
-      })
-      .addCase(fetchBookingById.rejected, (state, action) => {
+      .addCase(calculatePrice.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
-      // Fetch bookings by phone
-      .addCase(fetchBookingsByPhone.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchBookingsByPhone.fulfilled, (state, action) => {
-        state.loading = false;
-        state.customerBookings = action.payload;
-      })
-      .addCase(fetchBookingsByPhone.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      
-      // Create booking
       .addCase(createBooking.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createBooking.fulfilled, (state, action) => {
         state.loading = false;
-        state.bookings.unshift(action.payload.booking);
         state.currentBooking = action.payload.booking;
+        state.bookings = [action.payload.booking, ...state.bookings];
       })
       .addCase(createBooking.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      
-      // Confirm booking
-      .addCase(confirmBooking.fulfilled, (state, action) => {
-        const index = state.bookings.findIndex(b => b._id === action.payload.id);
-        if (index !== -1) {
-          state.bookings[index] = { ...state.bookings[index], status: 'confirmed' };
-        }
-        if (state.currentBooking && state.currentBooking._id === action.payload.id) {
-          state.currentBooking.status = 'confirmed';
-        }
+      .addCase(getBookingById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
-      
-      // Update status
-      .addCase(updateBookingStatus.fulfilled, (state, action) => {
-        const index = state.bookings.findIndex(b => b._id === action.payload.id);
-        if (index !== -1) {
-          state.bookings[index] = action.payload.booking;
-        }
-        if (state.currentBooking && state.currentBooking._id === action.payload.id) {
-          state.currentBooking = action.payload.booking;
-        }
+      .addCase(getBookingById.fulfilled, (state, action: PayloadAction<Booking>) => {
+        state.loading = false;
+        state.currentBooking = action.payload;
       })
-      
-      // Cancel booking
+      .addCase(getBookingById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(getBookingsByPhone.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getBookingsByPhone.fulfilled, (state, action: PayloadAction<Booking[]>) => {
+        state.loading = false;
+        state.bookings = action.payload;
+      })
+      .addCase(getBookingsByPhone.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(checkBookingStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(checkBookingStatus.fulfilled, (state, action: PayloadAction<BookingStatus>) => {
+        state.loading = false;
+        state.bookingStatus = action.payload;
+      })
+      .addCase(checkBookingStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(cancelBooking.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(cancelBooking.fulfilled, (state, action) => {
+        state.loading = false;
+        if (state.currentBooking && state.currentBooking._id === action.payload.id) {
+          state.currentBooking.status = 'cancelled';
+          state.currentBooking.status_text = 'Đã hủy';
+        }
         const index = state.bookings.findIndex(b => b._id === action.payload.id);
         if (index !== -1) {
           state.bookings[index].status = 'cancelled';
+          state.bookings[index].status_text = 'Đã hủy';
         }
-        if (state.currentBooking && state.currentBooking._id === action.payload.id) {
-          state.currentBooking.status = 'cancelled';
+        if (state.bookingStatus && state.bookingStatus.id === action.payload.id) {
+          state.bookingStatus.status = 'cancelled';
+          state.bookingStatus.status_text = 'Đã hủy';
         }
       })
-      
-      // Complete booking
-      .addCase(completeBooking.fulfilled, (state, action) => {
-        const index = state.bookings.findIndex(b => b._id === action.payload.id);
-        if (index !== -1) {
-          state.bookings[index].status = 'completed';
-        }
-        if (state.currentBooking && state.currentBooking._id === action.payload.id) {
-          state.currentBooking.status = 'completed';
-        }
+      .addCase(cancelBooking.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { clearError, clearCurrentBooking, clearCustomerBookings } = bookingSlice.actions;
+export const {
+  clearCurrentBooking,
+  clearBookings,
+  clearBookingStatus,
+  clearPriceCalculation,
+  clearError,
+  resetBookingState,
+} = bookingSlice.actions;
+
+export const selectCurrentBooking = (state: { booking: BookingState }) => state.booking.currentBooking;
+export const selectBookings = (state: { booking: BookingState }) => state.booking.bookings;
+export const selectBookingStatus = (state: { booking: BookingState }) => state.booking.bookingStatus;
+export const selectPriceCalculation = (state: { booking: BookingState }) => state.booking.priceCalculation;
+export const selectBookingLoading = (state: { booking: BookingState }) => state.booking.loading;
+export const selectBookingError = (state: { booking: BookingState }) => state.booking.error;
+
 export default bookingSlice.reducer;

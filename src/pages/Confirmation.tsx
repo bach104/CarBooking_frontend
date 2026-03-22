@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { CheckCircle2, Calendar, MapPin, Car, ArrowLeft, Home } from 'lucide-react';
+import { CheckCircle2, Home } from 'lucide-react';
 
 export default function Confirmation() {
   const [searchParams] = useSearchParams();

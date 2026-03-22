@@ -1,43 +1,142 @@
-import { apiGet, apiPost, apiPut } from '../../utils/api';
-import { Booking, CreateBookingPayload } from '../../types/Booking.types';
+// api/Booking.Api.ts
+import { getApiUrl } from '../../utils/dbUrl';
+import { 
+  CreateBookingRequest, 
+  Booking, 
+  PriceCalculationRequest, 
+  PriceCalculationResponse,
+  CancelBookingRequest,
+  BookingStatus
+} from '../../types/Booking.types';
 
-export const bookingApi = {
-  // Public endpoints (no auth)
-  createBooking: async (payload: CreateBookingPayload): Promise<{ bookingId: string; booking: Booking }> => {
-    return apiPost<{ bookingId: string; booking: Booking }>('/bookings', payload);
-  },
+class BookingApi {
+  private baseUrl: string;
 
-  getBookingsByCustomerPhone: async (phone: string): Promise<Booking[]> => {
-    return apiGet<Booking[]>(`/bookings/customer/${phone}`);
-  },
+  constructor() {
+    this.baseUrl = getApiUrl('/bookings');
+  }
 
-  // Staff endpoints (need auth)
-  getAllBookings: async (token: string): Promise<Booking[]> => {
-    return apiGet<Booking[]>('/bookings');
-  },
+  async calculatePrice(data: PriceCalculationRequest): Promise<PriceCalculationResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/calculate-price`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
 
-  getBookingById: async (id: string, token: string): Promise<Booking> => {
-    return apiGet<Booking>(`/bookings/${id}`);
-  },
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Không thể tính giá');
+      }
+      
+      return result.data;
+    } catch (error) {
+      console.error('❌ Lỗi tính giá:', error);
+      throw error;
+    }
+  }
 
-  confirmBooking: async (id: string, token: string): Promise<Booking> => {
-    return apiPut<Booking>(`/bookings/${id}/confirm`, {});
-  },
+  async createBooking(data: CreateBookingRequest): Promise<{ bookingId: string; booking: Booking }> {
+    try {
+      const response = await fetch(`${this.baseUrl}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
 
-  updateBookingStatus: async (
-    id: string, 
-    status: string, 
-    token: string, 
-    reason?: string
-  ): Promise<Booking> => {
-    return apiPut<Booking>(`/bookings/${id}/status`, { status, low_occupancy_reason: reason });
-  },
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Không thể tạo đơn đặt xe');
+      }
+      
+      return result.data;
+    } catch (error) {
+      console.error('❌ Lỗi tạo booking:', error);
+      throw error;
+    }
+  }
 
-  cancelBooking: async (id: string, token: string): Promise<Booking> => {
-    return apiPut<Booking>(`/bookings/${id}/cancel`, {});
-  },
+  async getBookingById(id: string): Promise<Booking> {
+    try {
+      const response = await fetch(`${this.baseUrl}/${id}`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Không tìm thấy đơn đặt xe');
+      }
+      
+      return result.data;
+    } catch (error) {
+      console.error('❌ Lỗi lấy booking:', error);
+      throw error;
+    }
+  }
 
-  completeBooking: async (id: string, token: string): Promise<Booking> => {
-    return apiPut<Booking>(`/bookings/${id}/complete`, {});
-  },
-};
+  async getBookingsByPhone(phone: string): Promise<Booking[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/phone/${phone}`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Không thể lấy danh sách đơn đặt xe');
+      }
+      
+      return result.data;
+    } catch (error) {
+      console.error('❌ Lỗi lấy danh sách booking:', error);
+      throw error;
+    }
+  }
+
+  async checkBookingStatus(id: string, phone?: string): Promise<BookingStatus> {
+    try {
+      let url = `${this.baseUrl}/status/${id}`;
+      if (phone) {
+        url += `?phone=${phone}`;
+      }
+      
+      const response = await fetch(url);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Không thể kiểm tra trạng thái đơn đặt xe');
+      }
+      
+      return result.data;
+    } catch (error) {
+      console.error('❌ Lỗi kiểm tra trạng thái:', error);
+      throw error;
+    }
+  }
+
+  async cancelBooking(id: string, data?: CancelBookingRequest): Promise<{ bookingId: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/${id}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data || {}),
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Không thể hủy đơn đặt xe');
+      }
+      
+      return result.data;
+    } catch (error) {
+      console.error('❌ Lỗi hủy booking:', error);
+      throw error;
+    }
+  }
+}
+
+export default new BookingApi();

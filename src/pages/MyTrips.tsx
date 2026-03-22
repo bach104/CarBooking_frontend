@@ -2,30 +2,100 @@ import React, { useEffect, useState } from 'react';
 import { 
   MapPin, Calendar, Car, Clock, ChevronRight, Search, 
   Ticket, ArrowLeft, Navigation, Phone, DollarSign, 
-  CheckCircle2, AlertCircle, History
+  CheckCircle2, AlertCircle, History, Loader
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Booking } from '../types';
+
+import { Booking } from '../types/Booking.types';
 
 export default function MyTrips() {
   const [phone, setPhone] = useState('');
   const [trips, setTrips] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSearch = async () => {
-    if (!phone) return;
+    if (!phone || phone.trim() === '') {
+      setError('Vui lòng nhập số điện thoại');
+      return;
+    }
+
+    const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
+    if (!phoneRegex.test(phone)) {
+      setError('Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam 10 số');
+      return;
+    }
+
     setLoading(true);
     setHasSearched(true);
+    setError(null);
+    
     try {
-      const res = await fetch('/api/bookings');
-      const allBookings: Booking[] = await res.json();
-      setTrips(allBookings.filter(b => b.customer_phone === phone));
+      // Gọi API đúng endpoint
+      const response = await fetch(`http://localhost:5000/api/bookings/phone/${phone}`);
+      const result = await response.json();
+      
+      console.log('API Response:', result); // Debug log
+      
+      if (result.success) {
+        setTrips(result.data || []);
+        if (result.data.length === 0) {
+          setError('Không tìm thấy chuyến đi nào cho số điện thoại này');
+        }
+      } else {
+        setError(result.message || 'Không thể tải danh sách chuyến đi');
+        setTrips([]);
+      }
     } catch (error) {
-      console.error(error);
+      console.error('Error fetching trips:', error);
+      setError('Không thể kết nối đến server. Vui lòng thử lại sau.');
+      setTrips([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getStatusText = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      'pending': 'Chờ xác nhận',
+      'confirmed': 'Đã xác nhận',
+      'assigned': 'Đã phân công',
+      'in-progress': 'Đang thực hiện',
+      'completed': 'Hoàn thành',
+      'cancelled': 'Đã hủy'
+    };
+    return statusMap[status] || status;
+  };
+
+  const formatDate = (dateString: string): string => {
+    try {
+      return new Date(dateString).toLocaleString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  const getVehicleTypeName = (booking: Booking): string => {
+    if (booking.vehicleType) {
+      return booking.vehicleType.type_name;
+    }
+    // Fallback based on seats
+    const typeMap: Record<number, string> = {
+      4: 'Xe 4 chỗ',
+      7: 'Xe 7 chỗ',
+      9: 'Xe 9 chỗ',
+      16: 'Xe 16 chỗ',
+      29: 'Xe 29 chỗ',
+      45: 'Xe 45 chỗ'
+    };
+    return typeMap[booking.seats] || `Xe ${booking.seats} chỗ`;
   };
 
   return (
@@ -69,22 +139,30 @@ export default function MyTrips() {
                 placeholder="Nhập số điện thoại tra cứu..."
                 className="w-full pl-14 pr-6 py-5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-gray-900"
                 value={phone}
-                onChange={e => setPhone(e.target.value)}
+                onChange={e => {
+                  setPhone(e.target.value);
+                  setError(null);
+                }}
                 onKeyPress={e => e.key === 'Enter' && handleSearch()}
               />
             </div>
             <button 
               onClick={handleSearch}
               disabled={loading || !phone}
-              className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"
+              className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 min-w-140"
             >
-              {loading ? <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div> : <Search size={20} />}
-              Tra Cứu
+              {loading ? <Loader className="animate-spin" size={20} /> : <Search size={20} />}
+              {loading ? 'Đang tìm...' : 'Tra Cứu'}
             </button>
           </div>
           <p className="mt-4 text-xs text-gray-400 text-center">
             * Hệ thống sẽ hiển thị tất cả các chuyến đi liên kết với số điện thoại này.
           </p>
+          {error && !loading && (
+            <div className="mt-4 p-3 bg-red-50 rounded-xl border border-red-200">
+              <p className="text-red-600 text-sm text-center">{error}</p>
+            </div>
+          )}
         </div>
 
         {/* Results Section */}
@@ -104,7 +182,7 @@ export default function MyTrips() {
             </div>
           ) : trips.length > 0 ? (
             trips.map(trip => (
-              <div key={trip.id} className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all group">
+              <div key={trip._id} className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all group">
                 {/* Card Header */}
                 <div className="p-6 md:p-8 border-b border-gray-50 flex flex-wrap justify-between items-center gap-4 bg-gray-50/30">
                   <div className="flex items-center gap-4">
@@ -113,10 +191,10 @@ export default function MyTrips() {
                     </div>
                     <div>
                       <div className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Mã Chuyến Đi</div>
-                      <div className="font-black text-gray-900">#CB-{trip.id.toString().padStart(4, '0')}</div>
+                      <div className="font-black text-gray-900">#CB-{trip._id.slice(-6).toUpperCase()}</div>
                     </div>
                   </div>
-                  <StatusBadge status={trip.status} />
+                  <StatusBadge status={trip.status} statusText={getStatusText(trip.status)} />
                 </div>
                 
                 {/* Card Body */}
@@ -132,7 +210,7 @@ export default function MyTrips() {
                         <div className="text-[10px] text-gray-400 uppercase font-black tracking-[0.2em] mb-1">Điểm Đón</div>
                         <div className="font-bold text-lg text-gray-900">{trip.pickup_location}</div>
                         <div className="text-sm text-gray-500 mt-1 flex items-center gap-1">
-                          <Clock size={14} /> {new Date(trip.trip_date).toLocaleString('vi-VN')}
+                          <Clock size={14} /> {formatDate(trip.trip_date)}
                         </div>
                       </div>
                       <div>
@@ -148,7 +226,7 @@ export default function MyTrips() {
                       <div className="text-[10px] text-gray-400 uppercase font-black mb-1">Loại Xe</div>
                       <div className="flex items-center gap-2 font-bold text-gray-700">
                         <Car size={16} className="text-emerald-500" />
-                        {trip.vehicle_type}
+                        {getVehicleTypeName(trip)}
                       </div>
                     </div>
                     <div className="bg-gray-50 p-4 rounded-2xl">
@@ -163,7 +241,31 @@ export default function MyTrips() {
                     </div>
                   </div>
 
-                  {/* Action Footer */}
+                  {/* Driver Info if assigned */}
+                  {trip.tripAssignment?.driver && (
+                    <div className="mt-6 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white">
+                          <Car size={20} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs text-blue-600 font-bold uppercase tracking-wider">Tài xế</div>
+                          <div className="font-bold text-blue-900">{trip.tripAssignment.driver.name}</div>
+                          <div className="text-sm text-blue-600 flex items-center gap-1">
+                            <Phone size={12} /> {trip.tripAssignment.driver.phone}
+                          </div>
+                        </div>
+                        {trip.tripAssignment.vehicle && (
+                          <div className="text-right">
+                            <div className="text-xs text-blue-600 font-bold uppercase tracking-wider">Biển số xe</div>
+                            <div className="font-bold text-blue-900">{trip.tripAssignment.vehicle.license_plate}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Status Messages */}
                   {trip.status === 'pending' && (
                     <div className="mt-8 p-4 bg-yellow-50 rounded-2xl border border-yellow-100 flex items-center gap-3 text-yellow-800 text-sm font-medium">
                       <AlertCircle size={18} />
@@ -174,6 +276,24 @@ export default function MyTrips() {
                     <div className="mt-8 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3 text-blue-800 text-sm font-medium">
                       <CheckCircle2 size={18} />
                       Tài xế đã được phân công. Vui lòng chuẩn bị hành lý.
+                    </div>
+                  )}
+                  {trip.status === 'in-progress' && (
+                    <div className="mt-8 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3 text-emerald-800 text-sm font-medium">
+                      <Car size={18} />
+                      Tài xế đang trên đường đến đón bạn.
+                    </div>
+                  )}
+                  {trip.status === 'completed' && (
+                    <div className="mt-8 p-4 bg-green-50 rounded-2xl border border-green-100 flex items-center gap-3 text-green-800 text-sm font-medium">
+                      <CheckCircle2 size={18} />
+                      Chuyến đi đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!
+                    </div>
+                  )}
+                  {trip.status === 'cancelled' && (
+                    <div className="mt-8 p-4 bg-red-50 rounded-2xl border border-red-100 flex items-center gap-3 text-red-800 text-sm font-medium">
+                      <AlertCircle size={18} />
+                      {trip.low_occupancy_reason || 'Chuyến đi đã bị hủy'}
                     </div>
                   )}
                 </div>
@@ -197,8 +317,8 @@ export default function MyTrips() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const styles: any = {
+function StatusBadge({ status, statusText }: { status: string; statusText: string }) {
+  const styles: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     confirmed: 'bg-blue-100 text-blue-700 border-blue-200',
     assigned: 'bg-purple-100 text-purple-700 border-purple-200',
@@ -206,10 +326,10 @@ function StatusBadge({ status }: { status: string }) {
     completed: 'bg-gray-100 text-gray-700 border-gray-200',
     cancelled: 'bg-red-100 text-red-700 border-red-200',
   };
+  
   return (
-    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${styles[status] || 'bg-gray-100'}`}>
-      {status}
+    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${styles[status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+      {statusText}
     </span>
   );
 }
-

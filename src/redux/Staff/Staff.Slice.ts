@@ -7,12 +7,10 @@ import {
   StaffLoginPayload
 } from '../../types/Staff.types';
 
-// Load state from localStorage
 const loadState = (): Partial<StaffState> => {
   try {
     const token = localStorage.getItem('staffToken');
     const staffInfo = localStorage.getItem('staffInfo');
-    
     console.log('🔄 Loading staff state from localStorage:', { 
       hasToken: !!token, 
       hasStaffInfo: !!staffInfo 
@@ -25,7 +23,6 @@ const loadState = (): Partial<StaffState> => {
         isAuthenticated: true
       };
     }
-    
     return { 
       token: null, 
       currentStaff: null,
@@ -51,7 +48,6 @@ const initialState: StaffState = {
   ...loadState(),
 };
 
-// Async thunks
 export const staffRegister = createAsyncThunk(
   'staff/register',
   async (payload: StaffRegisterPayload, { rejectWithValue }) => {
@@ -83,7 +79,6 @@ export const staffLogout = createAsyncThunk(
       await staffApi.logout();
       return { success: true };
     } catch (error: any) {
-      // Vẫn logout dù API lỗi
       dispatch(logout());
       return rejectWithValue(error.message || 'Logout failed');
     }
@@ -198,7 +193,6 @@ const staffSlice = createSlice({
         console.error('❌ Staff registration failed:', action.payload);
       })
       
-      // Login
       .addCase(staffLogin.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -222,7 +216,6 @@ const staffSlice = createSlice({
         console.error('❌ Staff login failed:', action.payload);
       })
       
-      // Logout
       .addCase(staffLogout.pending, (state) => {
         state.loading = true;
       })
@@ -254,7 +247,6 @@ const staffSlice = createSlice({
         console.error('❌ Staff logout failed:', action.payload);
       })
       
-      // Fetch current staff
       .addCase(fetchCurrentStaff.pending, (state) => {
         state.loading = true;
       })
@@ -268,14 +260,12 @@ const staffSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
         state.isAuthenticated = false;
-        // Clear invalid token
         localStorage.removeItem('staffToken');
         localStorage.removeItem('staffInfo');
         state.token = null;
         state.currentStaff = null;
       })
       
-      // Fetch all staff
       .addCase(fetchAllStaff.pending, (state) => {
         state.loading = true;
       })
@@ -288,7 +278,6 @@ const staffSlice = createSlice({
         state.error = action.payload as string;
       })
       
-      // Update staff
       .addCase(updateStaff.fulfilled, (state, action: PayloadAction<Staff>) => {
         const index = state.staffList.findIndex(s => s._id === action.payload._id);
         if (index !== -1) {
